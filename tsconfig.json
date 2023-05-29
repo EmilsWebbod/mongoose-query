@@ -4,13 +4,11 @@
   "exclude": [".husky", "dist", "public", "node_modules"],
   "compilerOptions": {
     /* Build options */
-    "jsx": "react",
-    "sourceMap": true,
+    "outDir": "lib",
+    "sourceMap": false,
     "declaration": true /* Generates corresponding '.d.ts' file. */,
-    "declarationMap": true /* Generates a sourcemap for each corresponding '.d.ts' file. */,
+    "declarationMap": false /* Generates a sourcemap for each corresponding '.d.ts' file. */,
     "skipLibCheck": true,
-    "noEmit": true,
-    "incremental": true,
 
     /* Required options for type="module" */
     "target": "ES2021" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017','ES2018' or 'ESNEXT'. */,

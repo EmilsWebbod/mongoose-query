@@ -93,7 +93,7 @@ export function mongooseQueryPopulate(query: IMongooseQueryOptions) {
   try {
     const populate = [];
     if ('$populate' in query || 'populate' in query) {
-      const populateValue = String(query.populate || query.$populate);
+      const populateValue = String(query.populate || query.$populate || '');
       if (populateValue) {
         const pathsToPopulate = populateValue
           .split(POPULATE_SPLIT)

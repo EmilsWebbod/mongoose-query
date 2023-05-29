@@ -70,7 +70,7 @@ describe('Query', () => {
 
     it('should return correct populate with empty string', () => {
       const populate = mongooseQueryPopulate({
-        populate: '',
+        $populate: '',
       });
       expect(populate).toEqual([]);
     });
