@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import mongoSanitize from 'express-mongo-sanitize';
-import { IQueryPopulate } from './QueryModel.js';
+import { IQueryPopulate } from './QueryOptions.js';
 import {
   IMongooseQueryOptions,
   mongooseQueryOptions,

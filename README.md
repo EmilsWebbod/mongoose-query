@@ -13,7 +13,7 @@ function queryMiddleware(req, next) {
 }
 
 // This is used to set some logic for query to that model. Model for query is set in the controllers.
-const modelQuery = new QueryModel<Doc>({
+const modelQueryOptions = new QueryOptions<Doc>({
     limit: 10,
     query: ['name', 'slug'], // Valid queries for model. Filters all other fields
     select: ['_id', 'name', 'slug'], // Valid select fields for search,
@@ -23,6 +23,9 @@ const modelQuery = new QueryModel<Doc>({
       select: ['_id', 'name', 'slug'] // Valid fields to select from populated
     }]
 });
+
+const User = mongoose.model('user', UserSchema);
+const modelQuery = new ModelQuery(User, modelQueryOptions);
 
 function someController(req, res) {
     // add organization ID to root query so query will always search inside organization

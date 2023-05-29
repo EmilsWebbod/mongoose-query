@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { toValidTextRegexp } from '../QueryModel.js';
+import { toValidTextRegexp } from '../QueryOptions.js';
 
 const VALUE_SPLIT = /,|\s/;
 const POPULATE_SPLIT = ';';

@@ -1,295 +1,377 @@
 import mongoose from 'mongoose';
 import { Query } from './Query.js';
-import { DEFAULT_LIMIT } from './utils/constants.js';
+import {
+  IQueryOptionsPopulate,
+  QueryOptions,
+  toValidTextRegexp,
+} from './QueryOptions.js';
 
-export interface ModelSearchPopulate<T extends any, K extends keyof T> {
-  path: K;
-  select: (T[K] extends object ? keyof T[K] : string)[];
-  ref?: string;
-  lookupRef?: string;
-  onFindOne?: boolean;
-  onPatch?: boolean;
-  onPost?: boolean;
-  onAll?: boolean;
-  onSearch?: boolean;
-  populate?: mongoose.PopulateOptions[];
+export interface QueryFindOpts {
+  populate?: boolean;
+  select?: boolean;
 }
 
-interface ModelSearchOptsSub<T extends object, K extends keyof T> {
-  sub: K;
-  populate: ModelSearchPopulate<T[K], keyof T[K]>[];
-}
-
-interface ModelSearchOpts<T extends object> {
-  editFields?: (keyof T)[];
-  privateFields?: (keyof T)[];
-  query?: (keyof T)[];
-  select?: (keyof T)[];
-  defaultSelect?: (keyof T)[] | string[];
-  sort?: (keyof T)[];
-  populate?: ModelSearchPopulate<T, keyof T>[];
-  limit?: number;
-  subs?: ModelSearchOptsSub<T, keyof T>[];
-  updateDateKey?: keyof T;
-}
-
-export interface IQueryPopulate {
-  path: string;
-  select?: string[];
-}
-
-type IModelQuery = mongoose.QueryWithHelpers<unknown, unknown>;
-export const toValidSelectRegexp = (select: string | number | symbol) =>
-  new RegExp(`^${String(select)}(\..|$)`);
-export const toValidSortRegexp = (sort: string | number | symbol) =>
-  new RegExp(`^(\\+|-)?(${String(sort)}|text)$`);
-export const toValidTextRegexp = (str: string) =>
-  typeof str === 'string'
-    ? new RegExp(str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
-    : '';
+type SubDocArray<T extends object, K extends keyof T> = T[K][];
+type SubDocItem<T extends object, K extends keyof T> =
+  | (T[K] extends [] ? T[K][0] : null)
+  | null;
 
 export class QueryModel<T extends object> {
-  constructor(private opts: ModelSearchOpts<T> = {}) {}
-
-  public get publicFields() {
-    return this.opts.editFields;
+  constructor(
+    private _model: mongoose.Model<T>,
+    private options: QueryOptions<T>
+  ) {
+    this.toJSON = this.toJSON.bind(this);
   }
 
-  public get privateFields() {
-    return this.opts.privateFields;
+  public get model() {
+    return this._model;
   }
 
-  public get populate() {
-    return this.opts.populate;
+  public async create<B extends Partial<T>>(body: B) {
+    const newDoc = new this._model(body);
+    await newDoc.validate();
+    await newDoc.save();
+    return newDoc;
   }
 
-  public get subs() {
-    return this.opts.subs;
+  public async json<D extends mongoose.Document>(doc: D): Promise<any> {
+    return doc.toJSON({ transform: this.toJSON });
   }
 
-  public get updateDateKey() {
-    return this.opts.updateDateKey;
+  public async search(query: Query<T>) {
+    const findQuery = this.options.createSearchQuery(query);
+    const modelFind = this._model.find(findQuery, query.options);
+    this.options.setPopulate(modelFind, query);
+    this.options.setLimitAndSkip(modelFind, query);
+    this.options.setSort(modelFind, query);
+    this.options.setSelect(modelFind, query, query.select);
+
+    const { skip = query.skip, limit = query.limit } = modelFind.getOptions();
+    const [data, count] = await Promise.all([
+      modelFind.lean().exec(),
+      this._model.find(findQuery).count(),
+    ]);
+
+    return { data: data as T[], count, limit, skip };
   }
 
-  public get query() {
-    return this.opts.query;
+  public async findOne(query: Query<T>, opts: QueryFindOpts = {}) {
+    const filter = query.root || query.createQuery();
+    const modelFindOne = this._model.findOne(filter);
+    if (opts.populate) this.options.setPopulate(modelFindOne, query);
+    this.options.setSelect(
+      modelFindOne,
+      query,
+      opts.select ? undefined : []
+    );
+    this.options.setProjection(modelFindOne, query);
+    return modelFindOne.exec();
   }
 
-  public createSearchQuery(query: Query<any, T>): mongoose.FilterQuery<T> {
-    return query.createQuery({ noRoot: false, query: this.opts.query });
-  }
-
-  public setPopulate(modelQuery: IModelQuery, query: Query<T>) {
-    let populate: mongoose.PopulateOptions[] = [];
-    if (query.populate.length > 0 && this.opts.populate) {
-      populate = this.getValidPopulate(query.populate).map((x) => ({
-        ...x,
-        select: x.select.join(' '),
-      })) as mongoose.PopulateOptions[];
-    }
-    if (query.rootPopulate.length > 0) {
-      populate.push(...query.rootPopulate);
-    }
-    if (populate.length > 0) {
-      modelQuery.populate(populate);
-    }
-  }
-
-  public getValidPopulate(
-    queryPopulate: IQueryPopulate[],
-    sub?: keyof T
-  ): ModelSearchPopulate<any, any>[] {
-    let checkPop = this.opts.populate;
-    if (this.opts.subs && sub) {
-      const found = this.opts.subs.find((x) => x.sub === sub);
-      if (!found || !found.populate || found.populate.length === 0) return [];
-      // @ts-ignore
-      checkPop = found.populate;
-    }
-    if (!checkPop) return [];
-    return queryPopulate
-      .map((pop) => {
-        const found = checkPop!.find((x) => x.path === pop.path);
-        if (!found) return null;
-        const select =
-          pop.select?.filter((x) => found.select.includes(x as any)) || [];
-        return {
-          path: pop.path,
-          select: select.length > 0 ? select : found.select,
-          ...(found.populate ? { populate: found.populate } : {}),
-        };
-      })
-      .filter(Boolean) as ModelSearchPopulate<any, any>[];
-  }
-
-  public setLimitAndSkip(modelQuery: IModelQuery, query: Query<T>) {
-    if (query.export) return;
-    modelQuery.skip(query.skip ?? 0);
-    modelQuery.limit(query.limit ?? this.opts.limit ?? DEFAULT_LIMIT);
-  }
-
-  public setSelect(
-    modelQuery: IModelQuery,
+  public async findOneAndUpdate(
     query: Query<T>,
-    overrideValid?: (keyof T)[]
+    filter: mongoose.FilterQuery<T>,
+    update: mongoose.UpdateQuery<T>
   ) {
-    const valids = overrideValid || this.opts.select;
-    let selects: (keyof T)[] = valids || [];
-    if (valids && valids.length > 0 && query.select.length > 0) {
-      selects = query.select.filter((select) =>
-        valids.some((valid) => String(select).match(toValidSelectRegexp(valid)))
-      );
-    } else if (this.opts.defaultSelect) {
-      selects = this.opts.defaultSelect as (keyof T)[];
-    }
-
-    if (selects.length > 0) {
-      modelQuery.select(selects.join(' '));
-    }
-  }
-
-  public setSort(modelQuery: IModelQuery, query: Query<T>) {
-    if (query.sort.length > 0) {
-      if (this.opts.sort) {
-        const validSorts = query.sort.filter((x) =>
-          this.opts.sort!.some((y) => String(x).match(toValidSortRegexp(y)))
-        );
-        modelQuery.sort(sortArrayToSortObject(validSorts, query.hasTextSearch));
+    if (this.options.updateDateKey) {
+      if ('$set' in update) {
+        // @ts-ignore
+        update['$set'][this.options.updateDateKey as keyof T] = new Date();
       } else {
-        modelQuery.sort(sortArrayToSortObject(query.sort, query.hasTextSearch));
+        // @ts-ignore
+        update[this.options.updateDateKey as keyof T] = new Date();
       }
     }
+    const modelUpdateOne = this._model.findOneAndUpdate(filter, update, {
+      new: true,
+    });
+    this.options.setPopulate(modelUpdateOne, query);
+    this.options.setSelect(modelUpdateOne, query);
+    return modelUpdateOne.exec();
   }
 
-  public setProjection(modelQuery: IModelQuery, query: Query<T>) {
-    if (query.projection) {
-      modelQuery.projection(query.projection);
-      query.projection = undefined;
-    }
+  public async deleteOne(filter: mongoose.FilterQuery<T>) {
+    return this._model.deleteOne(filter);
   }
 
-  public getSubPopulateLookup<K extends keyof T>(query: Query<T>, sub: K) {
-    if (!this.opts.subs) return [];
-    const validPopulate = this.opts.subs.find((x) => x.sub === sub);
-    if (!validPopulate) return [];
-
-    const populate = query.populate;
-    const $lookups = [];
-    if (populate.length > 0) {
-      for (const pop of populate) {
-        const found = validPopulate.populate.find((x) => x.path === pop.path);
-        if (!found) continue;
-        const select = pop.select
-          ? found.select.filter((x) => pop.select!.includes(String(x)))
-          : found.select;
-
-        $lookups.push(
-          ...[
-            {
-              $lookup: {
-                from: found.lookupRef || `${pop.path}s`,
-                localField: `${String(sub)}.${pop.path}`,
-                foreignField: '_id',
-                as: pop.path,
-              },
-            },
-            ...(pop.select
-              ? [
-                  {
-                    $project: {
-                      _id: 1,
-                      [sub]: 1,
-                      count: 1,
-                      [pop.path]: select.reduce(
-                        (obj, item) => ({ ...obj, [item]: 1 }),
-                        {}
-                      ),
-                    },
-                  },
-                ]
-              : []),
-          ]
-        );
-      }
-    }
-    return $lookups;
-  }
-
-  public getSubFilterConditionAndMatch(
-    subQuery: mongoose.FilterQuery<T>,
-    sub: keyof T
+  public async populate(
+    query: Query<T>,
+    doc: T | T[any],
+    type?: keyof IQueryOptionsPopulate<T, any>
   ) {
-    const cond: any = {};
-    let $match: any = {};
-    // tslint:disable-next-line:forin
-    for (const key in subQuery) {
-      const v = subQuery[key];
-      if (key !== '$and' && !Array.isArray(v)) {
-        const $and: any[] = [];
-        const [newItem, toMatch] = queryToSubFilter(key, subQuery[key]);
-        if (newItem.length > 0) {
-          $and.push(...newItem);
+    try {
+      const populates = type ? this.getPopulates(type) : [];
+      populates.push(...this.options.getValidPopulate(query.populate));
+      await this.populateDoc(doc, populates);
+    } catch (e) {
+      // empty
+    }
+  }
+
+  public getPopulates(type: keyof IQueryOptionsPopulate<T, any>) {
+    const populate = this.options.populate;
+    if (!populate || populate.length === 0) {
+      return [];
+    }
+    return populate.filter((x) => x[type] || x.onAll);
+  }
+
+  public async updateMany(
+    query: mongoose.FilterQuery<T>,
+    $in: mongoose.Types.ObjectId[],
+    body: Partial<T>
+  ) {
+    // @ts-ignore
+    return this._model.updateMany({ ...query, _id: { $in } }, { $set: body });
+  }
+
+  public async deleteMany(
+    query: mongoose.FilterQuery<T>,
+    $in: mongoose.Types.ObjectId[]
+  ) {
+    // @ts-ignore
+    return this._model.deleteMany({ ...query, _id: { $in } });
+  }
+
+  public async subCreate<K extends keyof T>(
+    sub: K,
+    query: Query<T>,
+    body: any
+  ): Promise<(T[K] extends [] ? T[K][0] : null) | null> {
+    if (!('_id' in body)) {
+      body['_id'] = new mongoose.Types.ObjectId();
+    }
+    await this._model.updateOne(
+      { ...query.root } as mongoose.FilterQuery<T>,
+      // @ts-ignore
+      { $push: { [sub]: body } }
+    );
+    return this.subFindOne(sub, query, { _id: body._id });
+  }
+
+  public async subSearch<K extends keyof T>(
+    sub: K,
+    query: Query<T>,
+    rootQuery: mongoose.FilterQuery<T>
+  ): Promise<{
+    count: number;
+    limit: number;
+    skip: number;
+    data: SubDocArray<T, K>;
+  }> {
+    const subQuery = query.createQuery({ noRoot: true });
+    const populate = query.populate;
+    const limit = query.limit;
+    const skip = query.skip;
+    const $lookups = this.options.getSubPopulateLookup(query, sub);
+    const { $filter, $match } = this.options.getSubFilterConditionAndMatch(
+      subQuery,
+      sub
+    );
+
+    const pipeline = [
+      { $match: rootQuery },
+      {
+        $project: {
+          [sub]: { $filter },
+          count: { $size: `$${String(sub)}` },
+        },
+      },
+      { $unwind: `$${String(sub)}` },
+      ...(skip ? [{ $skip: skip }] : []),
+      ...(limit ? [{ $limit: limit }] : []),
+      ...$lookups,
+    ];
+    if (Object.keys($match).length > 0) {
+      for (const key in $match) {
+        if ($match.hasOwnProperty(key)) {
+          const [path, pathKey] = key.split('.');
+          if (pathKey && populate.some((pop) => pop.path === path)) {
+            $match[`${path}.${pathKey}`] = toValidTextRegexp($match[key]);
+          } else if (typeof $match[key] === 'string') {
+            $match[`${String(sub)}.${path}`] = toValidTextRegexp($match[key]);
+          } else {
+            $match[`${String(sub)}.${path}`] = $match[key];
+          }
+          delete $match[key];
         }
-        $match = { ...$match, ...toMatch };
-        cond['$and'] = $and;
+      }
+      pipeline.push({ $match });
+    }
+    const arr = await this._model.aggregate(pipeline);
+    return arr.reduce(
+      (obj, item) => {
+        const data = { ...item[sub] };
+        for (const key in item) {
+          if (!['_id', 'count', 'skip', 'limit', sub].includes(key)) {
+            data[key] = Array.isArray(item[key]) ? item[key][0] : item[key];
+          }
+        }
+        return {
+          count: item.count,
+          data: [...obj.data, data],
+          skip: obj.skip,
+          limit: obj.limit,
+        };
+      },
+      { count: 0, data: [], skip, limit }
+    );
+  }
+
+  public async subFindOne<K extends keyof T>(
+    sub: K,
+    query: Query<T>,
+    subQuery: mongoose.FilterQuery<T[K]>
+  ): Promise<SubDocItem<T, K>> {
+    const subDoc = await this._model.findOne(
+      {
+        ...query.root,
+        [sub]: { $elemMatch: subQuery },
+      } as mongoose.FilterQuery<T>,
+      { [`${String(sub)}.$`]: 1 }
+    );
+    return this.getSubDocument<K>(sub, subDoc);
+  }
+
+  public async subFindOneAndUpdate<K extends keyof T>(
+    sub: K,
+    query: Query<T>,
+    subQuery: mongoose.FilterQuery<T[K]>,
+    body: T[K]
+  ): Promise<(T[K] extends [] ? T[K][0] : null) | null> {
+    const $set: any = {};
+    // tslint:disable-next-line:forin
+    for (const key in body) {
+      $set[`${String(sub)}.$.${key}`] = body[key];
+    }
+    await this._model.updateOne(
+      {
+        ...query.root,
+        [sub]: { $elemMatch: subQuery },
+      } as mongoose.FilterQuery<T>,
+      // @ts-ignore
+      { $set }
+    );
+    return this.subFindOne(sub, query, subQuery);
+  }
+
+  public async subDelete<K extends keyof T>(
+    sub: K,
+    query: Query<T>,
+    subQuery: mongoose.FilterQuery<T[K]>
+  ): Promise<(T[K] extends [] ? T[K][0] : null) | null> {
+    const subDoc = await this.subFindOne(sub, query, subQuery);
+    if (!subDoc) return null;
+    await this._model.updateOne(
+      {
+        ...query.root,
+        [sub]: { $elemMatch: subQuery },
+      } as mongoose.FilterQuery<T>,
+      // @ts-ignore
+      { $pull: { [sub]: { _id: subDoc._id } } }
+    );
+    return subDoc;
+  }
+
+  async subPopulate<R extends Request, SD, K extends keyof T>(
+    query: Query<T>,
+    subDoc: SD,
+    sub: K,
+    type?: keyof IQueryOptionsPopulate<T, K>
+  ) {
+    const populates = type ? this.getSubPopulate(sub, type) : [];
+    populates.push(...this.options.getValidPopulate(query.populate, sub));
+    return this.populateDoc(subDoc, populates, sub as string);
+  }
+
+  public getSubPopulate<K extends keyof T>(
+    sub: K,
+    type: keyof IQueryOptionsPopulate<T, K>
+  ) {
+    const subs = this.options.subs;
+    if (!subs) return [];
+    const docSub = subs.find((x) => x.sub === sub);
+    if (!docSub) return [];
+    return docSub.populate.filter((x) => x[type] || x.onAll);
+  }
+
+  private getSubDocument<K extends keyof T>(
+    key: K,
+    doc?: T | null
+  ): SubDocItem<T, K> {
+    if (!doc) return null;
+    const array = doc[key] as unknown as SubDocArray<T, K>;
+    if (array && Array.isArray(array)) {
+      // @ts-ignore
+      return array[0] || null;
+    }
+    return null;
+  }
+
+  public validateBody(body: Partial<T>) {
+    const invalidFields = [];
+    if (this.options.publicFields) {
+      for (const key in body) {
+        if (body.hasOwnProperty(key)) {
+          if (!this.options.publicFields.includes(key as any)) {
+            invalidFields.push(key);
+          }
+        }
       }
     }
-    const $filter = { input: `$${String(sub)}`, as: 'subdoc', cond };
-    return { $filter, $match };
+    return invalidFields.length > 0 ? invalidFields : null;
   }
-}
 
-interface UpdateObject {
-  [key: string]:
-    | {
-        $in?: string[];
-        $nin?: string[];
+  public toJSON(_: unknown, ret: T) {
+    if (this.options.privateFields) {
+      for (const key of this.options.privateFields) {
+        // @ts-ignore
+        if (key in ret) {
+          // @ts-ignore
+          delete ret[key];
+        }
       }
-    | string;
-}
-
-function queryToSubFilter<T extends UpdateObject, K extends keyof T>(
-  key: K,
-  value?: T[K]
-): [any[], object] {
-  if (!value) return [[], {}];
-  if (typeof value === 'object') {
-    if ('$in' in value && value.$in) {
-      return [
-        [{ $in: [`$$subdoc.${String(key)}`, value.$in.map(toCorrectIdValue)] }],
-        {},
-      ];
-    }
-    if ('$nin' in value && value.$nin) {
-      return [
-        value.$nin.map((x) => ({
-          $ne: [`$$subdoc.${String(key)}`, toCorrectIdValue(x)],
-        })),
-        {},
-      ];
     }
   }
-  return [[], { [key]: toCorrectIdValue(value as string) }];
-}
 
-function toCorrectIdValue(v?: string | number) {
-  if (!v) return v;
-  if (mongoose.isValidObjectId(v)) return new mongoose.Types.ObjectId(v);
-  return v;
-}
-
-function sortArrayToSortObject(arr: string[], hasText?: boolean) {
-  const sortObj: any = {};
-  for (const item of arr) {
-    if (item === 'text' && hasText) {
-      sortObj['score'] = { $meta: 'textScore' };
-    } else if (item[0] === '-') {
-      sortObj[item.substr(1)] = -1;
-    } else if (item[0] === '+') {
-      sortObj[item.substr(1)] = 1;
-    } else {
-      sortObj[item] = 1;
-    }
+  private populateDoc<D extends any>(
+    doc: D,
+    populates: IQueryOptionsPopulate<any, any>[],
+    subPath?: string
+  ) {
+    return Promise.all(
+      populates.map(async (populate) => {
+        try {
+          let subPathDoc: any;
+          if (subPath) {
+            subPathDoc = (this._model.schema as any).subpaths[
+              `${subPath}.${populate.path}`
+            ];
+          } else {
+            subPathDoc = this._model.schema.paths[populate.path];
+          }
+          let ref = populate.ref || subPathDoc?.options.ref;
+          if (!ref && Array.isArray(subPathDoc?.options.type)) {
+            ref = subPathDoc.options.type[0].ref;
+          }
+          if (!ref) {
+            throw new Error(
+              `ref was not defined in model with path ${populate.path}`
+            );
+          }
+          const model = mongoose.model(ref);
+          await model.populate(doc, {
+            path: populate.path,
+            select: populate.select.join(' '),
+            ...(populate.populate ? { populate: populate.populate } : {}),
+          });
+        } catch (e) {
+          console.error(e);
+          console.error({ doc, populates, path: subPath });
+          return Promise.resolve();
+        }
+      })
+    );
   }
-  return sortObj;
 }
