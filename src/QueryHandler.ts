@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
-import { Query } from './Query';
+import { Query } from './Query.js';
 import {
   ModelSearchPopulate,
   QueryModel,
   toValidTextRegexp,
-} from './QueryModel';
+} from './QueryModel.js';
 
 export interface QueryFindOpts {
   populate?: boolean;

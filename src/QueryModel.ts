@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import { Query } from './Query';
-import { DEFAULT_LIMIT } from './utils/constants';
+import { Query } from './Query.js';
+import { DEFAULT_LIMIT } from './utils/constants.js';
 
 export interface ModelSearchPopulate<T extends any, K extends keyof T> {
   path: K;

@@ -1,13 +1,6 @@
-export * from './QueryError';
-export * from './Query';
-export * from './QueryHandler';
-export * from './QueryHistory';
-export * from './QueryModel';
-
-export * from './utils/Query.utils';
-export * from './utils/types';
-
-export { toValidNumber } from './utils/Query.utils';
-export { ISearchPaginate } from './utils/utils';
-export { IQueryAddToModelQuery } from './utils/types';
-export { IQueryOptions } from './utils/types';
+export * from './utils/index.js';
+export * from './QueryError.js';
+export * from './Query.js';
+export * from './QueryHandler.js';
+export * from './QueryHistory.js';
+export * from './QueryModel.js';

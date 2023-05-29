@@ -1,17 +1,17 @@
 import mongoose from 'mongoose';
 import mongoSanitize from 'express-mongo-sanitize';
-import { IQueryPopulate } from './QueryModel';
+import { IQueryPopulate } from './QueryModel.js';
 import {
   IMongooseQueryOptions,
   mongooseQueryOptions,
   mongooseQueryWithOperation,
-} from './utils/Query.utils';
+} from './utils/Query.utils.js';
 import {
   IQueryAddToModelQuery,
   IQueryOptions,
   MongooseSortSelectValue,
   QueryType,
-} from './utils/types';
+} from './utils/types.js';
 
 export class Query<
   R extends object,

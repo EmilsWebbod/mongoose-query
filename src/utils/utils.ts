@@ -1,4 +1,4 @@
-import { Query } from '../Query';
+import type { Query } from '../Query.js';
 
 const addInRange = (pages: number, currentPage: number) => (add: number) => {
   const sum = currentPage + add;
