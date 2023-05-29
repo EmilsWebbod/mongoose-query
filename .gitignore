@@ -1,0 +1,11 @@
+
+#folder
+dist/
+node_modules/
+coverage/
+lib/
+
+.idea
+.nyc_output
+
+yarn-error.log
