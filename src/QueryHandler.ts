@@ -117,14 +117,21 @@ export class QueryHandler<T extends object> {
     return populate.filter((x) => x[type] || x.onAll);
   }
 
-  public async updateMany(ids: mongoose.Types.ObjectId[], body: Partial<T>) {
+  public async updateMany(
+    query: mongoose.FilterQuery<T>,
+    $in: mongoose.Types.ObjectId[],
+    body: Partial<T>
+  ) {
     // @ts-ignore
-    return this._model.updateMany({ _id: { $in: ids } }, { $set: body });
+    return this._model.updateMany({ ...query, _id: { $in } }, { $set: body });
   }
 
-  public async deleteMany(ids: mongoose.Types.ObjectId[]) {
+  public async deleteMany(
+    query: mongoose.FilterQuery<T>,
+    $in: mongoose.Types.ObjectId[]
+  ) {
     // @ts-ignore
-    return this._model.deleteMany({ _id: { $in: ids } });
+    return this._model.deleteMany({ ...query, _id: { $in } });
   }
 
   public async subCreate<K extends keyof T>(
