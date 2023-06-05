@@ -305,6 +305,7 @@ export class Query<
     for (const key in query) {
       if (query.hasOwnProperty(key)) {
         if (typeof query[key] !== 'string' || query[key] !== '') {
+          // @ts-ignore
           cleanedQuery[key] = query[key];
         }
       }
