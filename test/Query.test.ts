@@ -17,13 +17,13 @@ describe('Query', () => {
   });
   it('should search name with regexp', () => {
     const query = new Query({ $name: 'Search name' });
-    expect(query.query).to.deep.equal({
+    expect(query.createQuery()).to.deep.equal({
       name: { $regex: new RegExp('Search name', 'i') },
     });
   });
   it('should search text', () => {
     const query = new Query({ $text: 'Search text' });
-    expect(query.query).to.deep.equal({
+    expect(query.createQuery()).to.deep.equal({
       $text: { $search: 'Search text' },
     });
     expect(query.options).to.deep.equal({
@@ -32,7 +32,7 @@ describe('Query', () => {
   });
   it('should search list of ids', () => {
     const query = new Query({ $in__id: '1,2' });
-    expect(query.query).to.deep.equal({ _id: { $in: ['1', '2'] } });
+    expect(query.createQuery()).to.deep.equal({ _id: { $in: ['1', '2'] } });
   });
   it('should search gte and lt date', () => {
     const gte = '01.01.2022';
@@ -41,7 +41,7 @@ describe('Query', () => {
       $gte_createdAt: gte,
       $lt_createdAt: lt,
     });
-    expect(query.query).to.deep.equal({
+    expect(query.createQuery()).to.deep.equal({
       createdAt: {
         $gte: new Date(gte),
         $lt: new Date(lt),
@@ -58,7 +58,7 @@ describe('Query', () => {
         $and: value,
       },
     } as any);
-    expect(query.query).to.deep.equal({
+    expect(query.createQuery()).to.deep.equal({
       _or: value,
       _and: value,
       _in: value,

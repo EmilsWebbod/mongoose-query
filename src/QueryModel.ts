@@ -29,7 +29,8 @@ export class QueryModel<T extends object> {
   }
 
   public async create<B extends Partial<T>>(body: B) {
-    const newDoc = new this._model(body);
+    const validatedBody = this.options.validateBody('create', body);
+    const newDoc = new this._model(validatedBody);
     await newDoc.validate();
     await newDoc.save();
     return newDoc;
@@ -160,7 +161,7 @@ export class QueryModel<T extends object> {
     skip: number;
     data: SubDocArray<T, K>;
   }> {
-    const subQuery = query.createQuery({ noRoot: true });
+    const subQuery = query.createQuery({ noRoot: true, validate });
     const populate = query.populate;
     const limit = query.limit;
     const skip = query.skip;
@@ -309,6 +310,10 @@ export class QueryModel<T extends object> {
     return null;
   }
 
+  /**
+   * @deprecated. Use validateBody function instead.
+   * @param body
+   */
   public validateBody(body: Partial<T>) {
     const invalidFields = [];
     if (this.options.publicFields) {

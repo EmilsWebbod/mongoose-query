@@ -2,15 +2,15 @@ import mongoose from 'mongoose';
 import mongoSanitize from 'express-mongo-sanitize';
 import { IQueryPopulate } from './QueryOptions.js';
 import {
-  IMongooseQueryOptions,
   mongooseQueryOptions,
   mongooseQueryWithOperation,
 } from './utils/Query.utils.js';
 import {
+  IMongooseQueryOptions,
   IQueryAddToModelQuery,
   IQueryOptions,
   MongooseSortSelectValue,
-  QueryType,
+  QueryType, QueryValidateFn,
 } from './utils/types.js';
 
 export class Query<
@@ -37,13 +37,15 @@ export class Query<
   // Sets a projection to run on the query.
   private _projection: object | undefined = undefined;
 
-  readonly _query: QueryType<T> = {};
   readonly page: number | undefined;
   private _skip: number | undefined;
   private _limit: number | undefined;
   readonly sort: MongooseSortSelectValue<T>[] = [];
   private _select: MongooseSortSelectValue<T>[] = [];
 
+  private _query: QueryType<T> = {};
+  private textQuery: QueryType<T>;
+  private documentQuery: Q;
   readonly hasTextSearch: boolean = false;
   readonly options: IQueryOptions = {};
   readonly populate: IQueryPopulate[] = [];
@@ -59,15 +61,12 @@ export class Query<
     this.populate = populate;
     this.page = page;
 
-    const textQuery = this.mongooseTextSearch(query);
-    const operations = this.mongooseQueryWithOperations(query);
-    const sanitized = this.sanitizedQuery(query);
-
-    if (textQuery) {
+    this.textQuery = this.mongooseTextSearch(query);
+    if (this.textQuery) {
       this.hasTextSearch = true;
     }
 
-    this._query = { ...operations, ...sanitized, ...textQuery };
+    this.documentQuery = query;
   }
 
   get skip() {
@@ -89,10 +88,6 @@ export class Query<
       return this._addToModelQuery[this._model]!;
     }
     return root;
-  }
-
-  get query() {
-    return { ...this._query };
   }
 
   get model() {
@@ -160,7 +155,7 @@ export class Query<
     );
   }
 
-  public addRoot(query: typeof this._query) {
+  public addRoot(query: QueryType<T>) {
     this._root = {
       ...(this._root || {}),
       ...query,
@@ -169,7 +164,7 @@ export class Query<
     return this._root;
   }
 
-  public addRootNext(query: typeof this._query) {
+  public addRootNext(query: QueryType<T>) {
     this._rootNext = {
       ...(this._rootNext || {}),
       ...query,
@@ -178,12 +173,15 @@ export class Query<
     return this._rootNext;
   }
 
-  public removeQuery(key: keyof typeof this._query) {
+  public removeQuery(key: keyof QueryType<T>) {
     return this.deleteKeysFromQuery(key);
   }
-  public deleteKeysFromQuery(key: keyof typeof this._query) {
+  public deleteKeysFromQuery(key: keyof QueryType<T>) {
     if (key in this._query) {
       delete this._query[key];
+    }if (key in this.documentQuery) {
+      // @ts-ignore
+      delete this.documentQuery[key];
     }
   }
 
@@ -224,10 +222,12 @@ export class Query<
     param,
     query,
     noRoot,
+    validate,
   }: ICreateQueryOptions<R, T> = {}): QueryType<T> {
     if (param) {
       this.model = param;
     }
+    const _query = this.initQuery(validate)
     const queryArray = [];
     const root = this.root;
     if (!noRoot && root && Object.keys(root).length > 0) {
@@ -237,15 +237,15 @@ export class Query<
       queryArray.push(this._rootNext);
       this._rootNext = null;
     }
-    if (Object.keys(this._query).length > 0) {
+    if (Object.keys(_query).length > 0) {
       const addQuery = query
         ? query.reduce((obj, key) => {
-            if (typeof this._query[key] !== 'undefined') {
-              obj[key] = this._query[key];
+            if (typeof _query[key] !== 'undefined') {
+              obj[key] = _query[key];
             }
             return obj;
-          }, {} as typeof this._query)
-        : { ...this._query };
+          }, {} as QueryType<T>)
+        : _query;
       if (Object.keys(addQuery).length > 0) {
         queryArray.push(addQuery);
       }
@@ -263,6 +263,15 @@ export class Query<
     return (mQuery as QueryType<T>) || {};
   }
 
+  private initQuery(validate: QueryValidateFn = (_key, v) => v): QueryType<T> {
+    const query: Q = Object.assign({}, this.documentQuery) as Q;
+
+    const operations = this.mongooseQueryWithOperations(query, validate);
+    const sanitized = this.sanitizedQuery(query, validate);
+
+    return { ...operations, ...sanitized, ...this.textQuery, ...this._query };
+  }
+
   private mongooseTextSearch(query: Q | (Q & { text: unknown })) {
     const _query = {};
     if ('$text' in query) {
@@ -275,7 +284,7 @@ export class Query<
     return _query;
   }
 
-  private mongooseQueryWithOperations(query: Q) {
+  private mongooseQueryWithOperations(query: Q, validate: QueryValidateFn) {
     const operationQuery: QueryType<T> = {};
     for (const key in query) {
       if (query.hasOwnProperty(key)) {
@@ -285,14 +294,16 @@ export class Query<
           const { field, value } = mongooseQueryWithOperation(
             operationQuery,
             key,
-            str
+            str,
+            validate,
           );
           if (field) {
             operationQuery[field] = value;
           }
           delete query[key];
         } else if (key[0] === '!') {
-          operationQuery[key.slice(1) as keyof QueryType<T>] = { $ne: str };
+          const field = key.slice(1) as keyof QueryType<T>;
+          operationQuery[field] = { $ne: validate(field, str) };
           delete query[key];
         }
       }
@@ -300,13 +311,12 @@ export class Query<
     return operationQuery;
   }
 
-  private sanitizedQuery(query: Q) {
+  private sanitizedQuery(query: Q, validate: QueryValidateFn) {
     const cleanedQuery: QueryType<T> = {};
     for (const key in query) {
       if (query.hasOwnProperty(key)) {
         if (typeof query[key] !== 'string' || query[key] !== '') {
-          // @ts-ignore
-          cleanedQuery[key] = query[key];
+          cleanedQuery[key] = validate(key, query[key]);
         }
       }
     }
@@ -318,4 +328,5 @@ interface ICreateQueryOptions<R, T extends object> {
   param?: keyof R;
   query?: (keyof T)[];
   noRoot?: boolean;
+  validate?: QueryValidateFn;
 }
