@@ -8,7 +8,7 @@ export type MongooseSortSelectValue<
 export type QueryType<T extends object> = mongoose.FilterQuery<T>;
 
 export type QueryActions = 'create' | 'query' | 'update' | 'updateMany';
-export type QueryValidateFn = (key: string | number | symbol, value: any) => any;
+export type QueryValidateFn = (query: any) => any;
 
 export type IQueryAddToModelQuery<R extends object, T extends object> = {
   [key in keyof R]?: QueryType<T>;
@@ -33,5 +33,5 @@ export interface IMongooseQueryOptions {
   populate?: string;
   $populate?: string;
 
-  [key: string]: string | number | undefined;
+  [key: string | number | symbol]: string | number | undefined;
 }

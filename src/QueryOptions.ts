@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import {Query} from './Query.js';
 import {DEFAULT_LIMIT} from './utils/constants.js';
-import {QueryActions} from './utils/index.js';
+import {IMongooseQueryOptions, QueryValidateFn} from './utils/index.js';
 
 export interface IQueryOptionsPopulate<T extends any, K extends keyof T> {
   path: K;
@@ -19,8 +19,7 @@ export interface IQueryOptionsPopulate<T extends any, K extends keyof T> {
 interface IQuerySearchOptionsSub<T extends object, K extends keyof T> {
   sub: K;
   populate?: IQueryOptionsPopulate<T[K], keyof T[K]>[];
-  queryValidate?: (key: string, value: unknown) => boolean;
-  bodyValidate?: (action: QueryActions, body: Partial<T>) => boolean;
+  validateQuery?: QueryValidateFn;
 }
 
 interface IQueryOptions<T extends object> {
@@ -38,8 +37,7 @@ interface IQueryOptions<T extends object> {
   limit?: number;
   subs?: IQuerySearchOptionsSub<T, keyof T>[];
   updateDateKey?: keyof T;
-  validateQuery?: (key: string, value: any) => any;
-  validateBody?: (action: QueryActions, body: Partial<T>) => boolean;
+  validateQuery?: QueryValidateFn;
 }
 
 export interface IQueryPopulate {
@@ -89,13 +87,8 @@ export class QueryOptions<T extends object> {
     return query.createQuery({noRoot: false, query: this.opts.query, validate: this.validateQuery});
   }
 
-  public validateQuery(key: string, value: unknown) {
-    if (this.opts.validateQuery) return this.opts.validateQuery(key, value);
-    return true;
-  }
-
-  public validateBody(action: QueryActions, body: Partial<T>) {
-    if (this.opts.validateBody) return this.opts.validateBody(action, body);
+  public validateQuery(query: IMongooseQueryOptions) {
+    if (this.opts.validateQuery) return this.opts.validateQuery(query);
     return true;
   }
 
@@ -188,16 +181,12 @@ export class QueryOptions<T extends object> {
     }
   }
 
-  public getSubPopulateLookup<K extends keyof T>(query: Query<T>, sub: K) {
-    if (!this.opts.subs) return [];
-    const validPopulate = this.opts.subs.find((x) => x.sub === sub);
-    if (!validPopulate) return [];
-
+  public getSubPopulateLookup<K extends keyof T>(query: Query<T>, subOptions: IQuerySearchOptionsSub<T, keyof T>) {
     const populate = query.populate;
     const $lookups = [];
     if (populate.length > 0) {
       for (const pop of populate) {
-        const found = validPopulate.populate.find((x) => x.path === pop.path);
+        const found = subOptions.populate.find((x) => x.path === pop.path);
         if (!found) continue;
         const select = pop.select
           ? found.select.filter((x) => pop.select!.includes(String(x)))
@@ -208,7 +197,7 @@ export class QueryOptions<T extends object> {
             {
               $lookup: {
                 from: found.lookupRef || `${pop.path}s`,
-                localField: `${String(sub)}.${pop.path}`,
+                localField: `${String(subOptions.sub)}.${pop.path}`,
                 foreignField: '_id',
                 as: pop.path,
               },
@@ -218,7 +207,7 @@ export class QueryOptions<T extends object> {
                 {
                   $project: {
                     _id: 1,
-                    [sub]: 1,
+                    [subOptions.sub]: 1,
                     count: 1,
                     [pop.path]: select.reduce(
                       (obj, item) => ({...obj, [item]: 1}),

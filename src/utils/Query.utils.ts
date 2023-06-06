@@ -116,22 +116,22 @@ export function mongooseQueryWithOperation<
   T extends object,
   Q extends mongoose.FilterQuery<T>,
   K extends keyof Q
->(query: Q, queryKey: K, queryValue: string, validate: QueryValidateFn) {
+>(query: Q, queryKey: K, queryValue: string) {
   try {
     const _key = String(queryKey);
     if (_key.match(/^\$gte?_/) || _key.match(/^\$lte?_/)) {
       const [operation, field] = splitKey<Q, K>(_key as K);
-      return greaterLessThanValue<T, Q, K>(query, operation, field, validate(field, queryValue));
+      return greaterLessThanValue<T, Q, K>(query, operation, field, queryValue);
     } else if (_key.match(/^\$n?in_/)) {
       const [operation, field] = splitKey<Q, K>(_key as K);
-      return toMongooseOperation<T, Q, K>(query, operation, field, validate(field, queryValue));
+      return toMongooseOperation<T, Q, K>(query, operation, field, queryValue);
     } else {
       const field = _key.slice(1) as K;
       return {
         field,
         queryValue,
         value: {
-          $regex: new RegExp(toValidTextRegexp(validate(field, queryValue)), 'i'),
+          $regex: new RegExp(toValidTextRegexp(queryValue), 'i'),
         } as Q[K],
       };
     }

@@ -1,5 +1,7 @@
+import httpStatus from 'http-status';
 import mongoose from 'mongoose';
 import { Query } from './Query.js';
+import {QueryError} from './QueryError.js';
 import {
   IQueryOptionsPopulate,
   QueryOptions,
@@ -29,8 +31,7 @@ export class QueryModel<T extends object> {
   }
 
   public async create<B extends Partial<T>>(body: B) {
-    const validatedBody = this.options.validateBody('create', body);
-    const newDoc = new this._model(validatedBody);
+    const newDoc = new this._model(body);
     await newDoc.validate();
     await newDoc.save();
     return newDoc;
@@ -161,11 +162,17 @@ export class QueryModel<T extends object> {
     skip: number;
     data: SubDocArray<T, K>;
   }> {
-    const subQuery = query.createQuery({ noRoot: true, validate });
+    const subOptions = this.options.subs.find((x) => x.sub === sub);
+    if (!subOptions) {
+      throw new QueryError(httpStatus.NOT_IMPLEMENTED, 'Subdocument not found', {
+        detail: 'Missing options for subdocument',
+      });
+    }
+    const subQuery = query.createQuery({ noRoot: true, validate: subOptions.validateQuery });
     const populate = query.populate;
     const limit = query.limit;
     const skip = query.skip;
-    const $lookups = this.options.getSubPopulateLookup(query, sub);
+    const $lookups = this.options.getSubPopulateLookup(query, subOptions);
     const { $filter, $match } = this.options.getSubFilterConditionAndMatch(
       subQuery,
       sub

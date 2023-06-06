@@ -263,11 +263,11 @@ export class Query<
     return (mQuery as QueryType<T>) || {};
   }
 
-  private initQuery(validate: QueryValidateFn = (_key, v) => v): QueryType<T> {
-    const query: Q = Object.assign({}, this.documentQuery) as Q;
+  private initQuery(validate: QueryValidateFn = (q) => q): QueryType<T> {
+    const query: Q = validate(this.documentQuery);
 
-    const operations = this.mongooseQueryWithOperations(query, validate);
-    const sanitized = this.sanitizedQuery(query, validate);
+    const operations = this.mongooseQueryWithOperations(query);
+    const sanitized = this.sanitizedQuery(query);
 
     return { ...operations, ...sanitized, ...this.textQuery, ...this._query };
   }
@@ -284,7 +284,7 @@ export class Query<
     return _query;
   }
 
-  private mongooseQueryWithOperations(query: Q, validate: QueryValidateFn) {
+  private mongooseQueryWithOperations(query: Q) {
     const operationQuery: QueryType<T> = {};
     for (const key in query) {
       if (query.hasOwnProperty(key)) {
@@ -295,7 +295,6 @@ export class Query<
             operationQuery,
             key,
             str,
-            validate,
           );
           if (field) {
             operationQuery[field] = value;
@@ -303,7 +302,7 @@ export class Query<
           delete query[key];
         } else if (key[0] === '!') {
           const field = key.slice(1) as keyof QueryType<T>;
-          operationQuery[field] = { $ne: validate(field, str) };
+          operationQuery[field] = { $ne: str };
           delete query[key];
         }
       }
@@ -311,12 +310,13 @@ export class Query<
     return operationQuery;
   }
 
-  private sanitizedQuery(query: Q, validate: QueryValidateFn) {
+  private sanitizedQuery(query: Q) {
     const cleanedQuery: QueryType<T> = {};
     for (const key in query) {
       if (query.hasOwnProperty(key)) {
         if (typeof query[key] !== 'string' || query[key] !== '') {
-          cleanedQuery[key] = validate(key, query[key]);
+          // @ts-ignore
+          cleanedQuery[key] = query[key];
         }
       }
     }
