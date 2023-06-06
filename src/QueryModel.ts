@@ -178,7 +178,7 @@ export class QueryModel<T extends object> {
     const $lookups = this.options.getSubPopulateLookup(query, subOptions);
     const { $filter, $match } = this.options.getSubFilterConditionAndMatch(
       subQuery,
-      sub
+      subOptions
     );
 
     const pipeline = [

@@ -232,7 +232,7 @@ export class QueryOptions<T extends object> {
 
   public getSubFilterConditionAndMatch(
     subQuery: mongoose.FilterQuery<T>,
-    sub: keyof T
+    options: IQuerySearchOptionsSub<T, keyof T>
   ) {
     const cond: any = {};
     let $match: any = {};
@@ -249,7 +249,7 @@ export class QueryOptions<T extends object> {
         cond['$and'] = $and;
       }
     }
-    const $filter = { input: `$${String(sub)}`, as: 'subdoc', cond };
+    const $filter = { input: `$${String(options.sub)}`, as: 'subdoc', cond };
     return { $filter, $match };
   }
 }
