@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
-import {Query} from './Query.js';
-import {DEFAULT_LIMIT} from './utils/constants.js';
-import {IMongooseQueryOptions, QueryValidateFn} from './utils/index.js';
+import { Query } from './Query.js';
+import { DEFAULT_LIMIT } from './utils/constants.js';
+import { IMongooseQueryOptions, QueryValidateFn } from './utils/index.js';
 
 export interface IQueryOptionsPopulate<T extends any, K extends keyof T> {
   path: K;
@@ -23,11 +23,11 @@ interface IQuerySearchOptionsSub<T extends object, K extends keyof T> {
 }
 
 interface IQueryOptions<T extends object> {
-  editFields?: (keyof T)[];
   /**
-   * @deprecated. Use validateBody function instead.
+   * @deprecated. Use your own middleware to validate body.
    * @param body
    */
+  editFields?: (keyof T)[];
   privateFields?: (keyof T)[];
   query?: (keyof T)[];
   select?: (keyof T)[];
@@ -56,8 +56,7 @@ export const toValidTextRegexp = (str: string) =>
     : '';
 
 export class QueryOptions<T extends object> {
-  constructor(private opts: IQueryOptions<T> = {}) {
-  }
+  constructor(private opts: IQueryOptions<T> = {}) {}
 
   public get publicFields() {
     return this.opts.editFields;
@@ -84,7 +83,11 @@ export class QueryOptions<T extends object> {
   }
 
   public createSearchQuery(query: Query<any, T>): mongoose.FilterQuery<T> {
-    return query.createQuery({noRoot: false, query: this.opts.query, validate: this.validateQuery});
+    return query.createQuery({
+      noRoot: false,
+      query: this.opts.query,
+      validate: this.validateQuery,
+    });
   }
 
   public validateQuery(query: IMongooseQueryOptions) {
@@ -110,7 +113,7 @@ export class QueryOptions<T extends object> {
 
   public getValidPopulate(
     queryPopulate: IQueryPopulate[],
-    sub?: keyof T,
+    sub?: keyof T
   ): IQueryOptionsPopulate<any, any>[] {
     let checkPop = this.opts.populate;
     if (this.opts.subs && sub) {
@@ -129,7 +132,7 @@ export class QueryOptions<T extends object> {
         return {
           path: pop.path,
           select: select.length > 0 ? select : found.select,
-          ...(found.populate ? {populate: found.populate} : {}),
+          ...(found.populate ? { populate: found.populate } : {}),
         };
       })
       .filter(Boolean) as IQueryOptionsPopulate<any, any>[];
@@ -144,13 +147,13 @@ export class QueryOptions<T extends object> {
   public setSelect(
     modelQuery: IModelQuery,
     query: Query<T>,
-    overrideValid?: (keyof T)[],
+    overrideValid?: (keyof T)[]
   ) {
     const valids = overrideValid || this.opts.select;
     let selects: (keyof T)[] = valids || [];
     if (valids && valids.length > 0 && query.select.length > 0) {
       selects = query.select.filter((select) =>
-        valids.some((valid) => String(select).match(toValidSelectRegexp(valid))),
+        valids.some((valid) => String(select).match(toValidSelectRegexp(valid)))
       );
     } else if (this.opts.defaultSelect) {
       selects = this.opts.defaultSelect as (keyof T)[];
@@ -165,7 +168,7 @@ export class QueryOptions<T extends object> {
     if (query.sort.length > 0) {
       if (this.opts.sort) {
         const validSorts = query.sort.filter((x) =>
-          this.opts.sort!.some((y) => String(x).match(toValidSortRegexp(y))),
+          this.opts.sort!.some((y) => String(x).match(toValidSortRegexp(y)))
         );
         modelQuery.sort(sortArrayToSortObject(validSorts, query.hasTextSearch));
       } else {
@@ -181,7 +184,10 @@ export class QueryOptions<T extends object> {
     }
   }
 
-  public getSubPopulateLookup<K extends keyof T>(query: Query<T>, subOptions: IQuerySearchOptionsSub<T, keyof T>) {
+  public getSubPopulateLookup<K extends keyof T>(
+    query: Query<T>,
+    subOptions: IQuerySearchOptionsSub<T, keyof T>
+  ) {
     const populate = query.populate;
     const $lookups = [];
     if (populate.length > 0) {
@@ -204,20 +210,20 @@ export class QueryOptions<T extends object> {
             },
             ...(pop.select
               ? [
-                {
-                  $project: {
-                    _id: 1,
-                    [subOptions.sub]: 1,
-                    count: 1,
-                    [pop.path]: select.reduce(
-                      (obj, item) => ({...obj, [item]: 1}),
-                      {},
-                    ),
+                  {
+                    $project: {
+                      _id: 1,
+                      [subOptions.sub]: 1,
+                      count: 1,
+                      [pop.path]: select.reduce(
+                        (obj, item) => ({ ...obj, [item]: 1 }),
+                        {}
+                      ),
+                    },
                   },
-                },
-              ]
+                ]
               : []),
-          ],
+          ]
         );
       }
     }
@@ -226,7 +232,7 @@ export class QueryOptions<T extends object> {
 
   public getSubFilterConditionAndMatch(
     subQuery: mongoose.FilterQuery<T>,
-    sub: keyof T,
+    sub: keyof T
   ) {
     const cond: any = {};
     let $match: any = {};
@@ -239,33 +245,33 @@ export class QueryOptions<T extends object> {
         if (newItem.length > 0) {
           $and.push(...newItem);
         }
-        $match = {...$match, ...toMatch};
+        $match = { ...$match, ...toMatch };
         cond['$and'] = $and;
       }
     }
-    const $filter = {input: `$${String(sub)}`, as: 'subdoc', cond};
-    return {$filter, $match};
+    const $filter = { input: `$${String(sub)}`, as: 'subdoc', cond };
+    return { $filter, $match };
   }
 }
 
 interface UpdateObject {
   [key: string]:
     | {
-    $in?: string[];
-    $nin?: string[];
-  }
+        $in?: string[];
+        $nin?: string[];
+      }
     | string;
 }
 
 function queryToSubFilter<T extends UpdateObject, K extends keyof T>(
   key: K,
-  value?: T[K],
+  value?: T[K]
 ): [any[], object] {
   if (!value) return [[], {}];
   if (typeof value === 'object') {
     if ('$in' in value && value.$in) {
       return [
-        [{$in: [`$$subdoc.${String(key)}`, value.$in.map(toCorrectIdValue)]}],
+        [{ $in: [`$$subdoc.${String(key)}`, value.$in.map(toCorrectIdValue)] }],
         {},
       ];
     }
@@ -278,7 +284,7 @@ function queryToSubFilter<T extends UpdateObject, K extends keyof T>(
       ];
     }
   }
-  return [[], {[key]: toCorrectIdValue(value as string)}];
+  return [[], { [key]: toCorrectIdValue(value as string) }];
 }
 
 function toCorrectIdValue(v?: string | number) {
@@ -291,7 +297,7 @@ function sortArrayToSortObject(arr: string[], hasText?: boolean) {
   const sortObj: any = {};
   for (const item of arr) {
     if (item === 'text' && hasText) {
-      sortObj['score'] = {$meta: 'textScore'};
+      sortObj['score'] = { $meta: 'textScore' };
     } else if (item[0] === '-') {
       sortObj[item.substr(1)] = -1;
     } else if (item[0] === '+') {
