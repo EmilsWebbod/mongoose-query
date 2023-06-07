@@ -1,5 +1,7 @@
+import httpStatus from 'http-status';
 import mongoose from 'mongoose';
 import { Query } from './Query.js';
+import { QueryError } from './QueryError.js';
 import {
   IQueryOptionsPopulate,
   QueryOptions,
@@ -60,11 +62,7 @@ export class QueryModel<T extends object> {
     const filter = query.root || query.createQuery();
     const modelFindOne = this._model.findOne(filter);
     if (opts.populate) this.options.setPopulate(modelFindOne, query);
-    this.options.setSelect(
-      modelFindOne,
-      query,
-      opts.select ? undefined : []
-    );
+    this.options.setSelect(modelFindOne, query, opts.select ? undefined : []);
     this.options.setProjection(modelFindOne, query);
     return modelFindOne.exec();
   }
@@ -160,14 +158,27 @@ export class QueryModel<T extends object> {
     skip: number;
     data: SubDocArray<T, K>;
   }> {
-    const subQuery = query.createQuery({ noRoot: true });
+    const subOptions = this.options.subs?.find((x) => x.sub === sub);
+    if (!subOptions) {
+      throw new QueryError(
+        httpStatus.NOT_IMPLEMENTED,
+        'Subdocument not found',
+        {
+          detail: 'Missing options for subdocument',
+        }
+      );
+    }
+    const subQuery = query.createQuery({
+      noRoot: true,
+      validate: subOptions.validateQuery,
+    });
     const populate = query.populate;
     const limit = query.limit;
     const skip = query.skip;
-    const $lookups = this.options.getSubPopulateLookup(query, sub);
+    const $lookups = this.options.getSubPopulateLookup(query, subOptions);
     const { $filter, $match } = this.options.getSubFilterConditionAndMatch(
       subQuery,
-      sub
+      subOptions
     );
 
     const pipeline = [
@@ -309,6 +320,10 @@ export class QueryModel<T extends object> {
     return null;
   }
 
+  /**
+   * @deprecated. Use validateBody function instead.
+   * @param body
+   */
   public validateBody(body: Partial<T>) {
     const invalidFields = [];
     if (this.options.publicFields) {

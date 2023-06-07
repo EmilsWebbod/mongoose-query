@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import {toValidTextRegexp} from '../QueryOptions.js';
+import { toValidTextRegexp } from '../QueryOptions.js';
+import { IMongooseQueryOptions } from './types.js';
 
 const VALUE_SPLIT = /,|\s/;
 const POPULATE_SPLIT = ';';
@@ -7,30 +8,12 @@ const POPULATE_PATH_SPLIT = ':';
 
 export const toValidNumber = (
   v: string | number | undefined,
-  defaultV: number,
+  defaultV: number
 ) => (typeof v === 'number' ? Number(v) : v ? parseInt(v, 10) : defaultV);
 
-export interface IMongooseQueryOptions {
-  skip?: number | string;
-  limit?: number | string;
-  page?: number | string;
-
-  /** @deprecated. Use $text */
-  text?: string;
-  $text?: string;
-
-  sort?: string;
-  select?: string;
-  /** @deprecated. Use $populate */
-  populate?: string;
-  $populate?: string;
-
-  [key: string]: string | number | undefined;
-}
-
 export function mongooseQueryOptions(query: IMongooseQueryOptions) {
-  const {skip, limit, page} = mongooseQuerySkipLimit(query);
-  const {select, sort} = mongooseQuerySortSelect(query);
+  const { skip, limit, page } = mongooseQuerySkipLimit(query);
+  const { select, sort } = mongooseQuerySortSelect(query);
   const populate = mongooseQueryPopulate(query);
 
   return {
@@ -69,9 +52,9 @@ export function mongooseQuerySkipLimit(query: IMongooseQueryOptions) {
       delete query.page;
     }
 
-    return {skip, limit, page};
+    return { skip, limit, page };
   } catch (e) {
-    return {skip: 0, limit: 20};
+    return { skip: 0, limit: 20 };
   }
 }
 
@@ -88,9 +71,9 @@ export function mongooseQuerySortSelect(query: IMongooseQueryOptions) {
       select = query.select.split(VALUE_SPLIT).filter(Boolean);
       delete query.select;
     }
-    return {sort, select};
+    return { sort, select };
   } catch (e) {
-    return {sort: [], select: []};
+    return { sort: [], select: [] };
   }
 }
 
@@ -108,7 +91,7 @@ export function mongooseQueryPopulate(query: IMongooseQueryOptions) {
           if (path) {
             populate.push({
               path,
-              ...(selects ? {select: selects.split(VALUE_SPLIT)} : {}),
+              ...(selects ? { select: selects.split(VALUE_SPLIT) } : {}),
             });
           }
         }
@@ -123,7 +106,7 @@ export function mongooseQueryPopulate(query: IMongooseQueryOptions) {
 }
 
 const splitKey = <Q extends mongoose.FilterQuery<any>, K extends keyof Q>(
-  key: K,
+  key: K
 ): [operation: string, field: K] => {
   const [operation, ...field] = String(key).split('_');
   return [operation, field.join('_') as K];
@@ -133,23 +116,26 @@ export function mongooseQueryWithOperation<
   T extends object,
   Q extends mongoose.FilterQuery<T>,
   K extends keyof Q
->(query: Q, key: K, str: string) {
+>(query: Q, queryKey: K, queryValue: string) {
   try {
-    const _key = String(key);
+    const _key = String(queryKey);
     if (_key.match(/^\$gte?_/) || _key.match(/^\$lte?_/)) {
-      return greaterLessThanValue<T, Q, K>(_key as K, query, str);
+      const [operation, field] = splitKey<Q, K>(_key as K);
+      return greaterLessThanValue<T, Q, K>(query, operation, field, queryValue);
     } else if (_key.match(/^\$n?in_/)) {
-      return toMongooseOperation<T, Q, K>(_key as K, query, str);
+      const [operation, field] = splitKey<Q, K>(_key as K);
+      return toMongooseOperation<T, Q, K>(query, operation, field, queryValue);
     } else {
+      const field = _key.slice(1) as K;
       return {
-        field: _key.slice(1) as K,
+        field,
         value: {
-          $regex: new RegExp(toValidTextRegexp(str), 'i'),
+          $regex: new RegExp(toValidTextRegexp(queryValue), 'i'),
         } as Q[K],
       };
     }
   } catch (e) {
-    return {field: '', value: ''};
+    return { field: '', value: '' };
   }
 }
 
@@ -157,18 +143,25 @@ export function greaterLessThanValue<
   T extends object,
   Q extends mongoose.FilterQuery<T>,
   K extends keyof Q
->(key: K, query: Q, str: string): { field: K; value: Q[K] } {
-  const [operation, field] = splitKey<Q, K>(key);
+>(
+  query: Q,
+  operation: string,
+  field: K,
+  queryValue: string
+): {
+  field: K;
+  value: Q[K];
+} {
   let value: Q[K];
   if (query[field]) {
     value = {
       ...query[field],
-      [operation]: new Date(str),
+      [operation]: new Date(queryValue),
     };
   } else {
-    value = {[operation]: new Date(str)} as Q[K];
+    value = { [operation]: new Date(queryValue) } as Q[K];
   }
-  return {field, value};
+  return { field, value };
 }
 
 const SORT_SPLIT = /,|\s/;
@@ -177,10 +170,17 @@ export function toMongooseOperation<
   T extends object,
   Q extends mongoose.FilterQuery<T>,
   K extends keyof Q
->(key: K, query: Q, str: string): { field: K; value: Q[K] } {
-  const [operation, field] = splitKey(key);
+>(
+  query: Q,
+  operation: string,
+  field: K,
+  queryValue: string
+): {
+  field: K;
+  value: Q[K];
+} {
   const value = {
-    [operation]: str.split(SORT_SPLIT),
+    [operation]: queryValue.split(SORT_SPLIT),
   } as Q[K];
-  return {field, value};
+  return { field, value };
 }
