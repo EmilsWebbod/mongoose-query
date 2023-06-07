@@ -11,7 +11,6 @@ import {
   IQueryOptions,
   MongooseSortSelectValue,
   QueryType,
-  QueryValidateFn,
 } from './utils/types.js';
 
 export class Query<
@@ -228,12 +227,11 @@ export class Query<
     param,
     query,
     noRoot,
-    validate,
   }: ICreateQueryOptions<R, T> = {}): QueryType<T> {
     if (param) {
       this.model = param;
     }
-    const _query = this.initQuery(validate);
+    const _query = this.initQuery();
     const queryArray = [];
     const root = this.root;
     if (!noRoot && root && Object.keys(root).length > 0) {
@@ -269,8 +267,8 @@ export class Query<
     return (mQuery as QueryType<T>) || {};
   }
 
-  private initQuery(validate: QueryValidateFn = (q) => q): QueryType<T> {
-    const query: Q = validate(this.documentQuery);
+  private initQuery(): QueryType<T> {
+    const query: Q = Object.assign({}, this.documentQuery);
 
     const operations = this.mongooseQueryWithOperations(query);
     const sanitized = this.sanitizedQuery(query);
@@ -334,5 +332,4 @@ interface ICreateQueryOptions<R, T extends object> {
   param?: keyof R;
   query?: (keyof T)[];
   noRoot?: boolean;
-  validate?: QueryValidateFn;
 }

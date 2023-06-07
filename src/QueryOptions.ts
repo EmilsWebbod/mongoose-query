@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import { Query } from './Query.js';
 import { DEFAULT_LIMIT } from './utils/constants.js';
-import { IMongooseQueryOptions, QueryValidateFn } from './utils/index.js';
 
 export interface IQueryOptionsPopulate<T extends any, K extends keyof T> {
   path: K;
@@ -19,15 +18,9 @@ export interface IQueryOptionsPopulate<T extends any, K extends keyof T> {
 interface IQuerySearchOptionsSub<T extends object, K extends keyof T> {
   sub: K;
   populate?: IQueryOptionsPopulate<T[K], keyof T[K]>[];
-  validateQuery?: QueryValidateFn;
 }
 
 interface IQueryOptions<T extends object> {
-  /**
-   * @deprecated. Use your own middleware to validate body.
-   * @param body
-   */
-  editFields?: (keyof T)[];
   privateFields?: (keyof T)[];
   query?: (keyof T)[];
   select?: (keyof T)[];
@@ -37,7 +30,6 @@ interface IQueryOptions<T extends object> {
   limit?: number;
   subs?: IQuerySearchOptionsSub<T, keyof T>[];
   updateDateKey?: keyof T;
-  validateQuery?: QueryValidateFn;
 }
 
 export interface IQueryPopulate {
@@ -57,10 +49,6 @@ export const toValidTextRegexp = (str: string) =>
 
 export class QueryOptions<T extends object> {
   constructor(private opts: IQueryOptions<T> = {}) {}
-
-  public get publicFields() {
-    return this.opts.editFields;
-  }
 
   public get privateFields() {
     return this.opts.privateFields;
@@ -86,13 +74,7 @@ export class QueryOptions<T extends object> {
     return query.createQuery({
       noRoot: false,
       query: this.opts.query,
-      validate: this.validateQuery,
     });
-  }
-
-  public validateQuery(query: IMongooseQueryOptions) {
-    if (this.opts.validateQuery) return this.opts.validateQuery(query);
-    return true;
   }
 
   public setPopulate(modelQuery: IModelQuery, query: Query<T>) {

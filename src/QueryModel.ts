@@ -170,7 +170,6 @@ export class QueryModel<T extends object> {
     }
     const subQuery = query.createQuery({
       noRoot: true,
-      validate: subOptions.validateQuery,
     });
     const populate = query.populate;
     const limit = query.limit;
@@ -318,24 +317,6 @@ export class QueryModel<T extends object> {
       return array[0] || null;
     }
     return null;
-  }
-
-  /**
-   * @deprecated. Use validateBody function instead.
-   * @param body
-   */
-  public validateBody(body: Partial<T>) {
-    const invalidFields = [];
-    if (this.options.publicFields) {
-      for (const key in body) {
-        if (body.hasOwnProperty(key)) {
-          if (!this.options.publicFields.includes(key as any)) {
-            invalidFields.push(key);
-          }
-        }
-      }
-    }
-    return invalidFields.length > 0 ? invalidFields : null;
   }
 
   public toJSON(_: unknown, ret: T) {

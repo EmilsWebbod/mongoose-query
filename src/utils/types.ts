@@ -7,9 +7,6 @@ export type MongooseSortSelectValue<
 
 export type QueryType<T extends object> = mongoose.FilterQuery<T>;
 
-export type QueryActions = 'create' | 'query' | 'update' | 'updateMany';
-export type QueryValidateFn = (query: any) => any;
-
 export type IQueryAddToModelQuery<R extends object, T extends object> = {
   [key in keyof R]?: QueryType<T>;
 };
