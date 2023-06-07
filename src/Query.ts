@@ -10,7 +10,8 @@ import {
   IQueryAddToModelQuery,
   IQueryOptions,
   MongooseSortSelectValue,
-  QueryType, QueryValidateFn,
+  QueryType,
+  QueryValidateFn,
 } from './utils/types.js';
 
 export class Query<
@@ -110,6 +111,10 @@ export class Query<
     return this._or;
   }
 
+  get query() {
+    return this.documentQuery;
+  }
+
   get export() {
     return this._export;
   }
@@ -179,7 +184,8 @@ export class Query<
   public deleteKeysFromQuery(key: keyof QueryType<T>) {
     if (key in this._query) {
       delete this._query[key];
-    }if (key in this.documentQuery) {
+    }
+    if (key in this.documentQuery) {
       // @ts-ignore
       delete this.documentQuery[key];
     }
@@ -227,7 +233,7 @@ export class Query<
     if (param) {
       this.model = param;
     }
-    const _query = this.initQuery(validate)
+    const _query = this.initQuery(validate);
     const queryArray = [];
     const root = this.root;
     if (!noRoot && root && Object.keys(root).length > 0) {
@@ -294,7 +300,7 @@ export class Query<
           const { field, value } = mongooseQueryWithOperation(
             operationQuery,
             key,
-            str,
+            str
           );
           if (field) {
             operationQuery[field] = value;
