@@ -201,6 +201,10 @@ export class Query<
     }
   }
 
+  public getModelQuery<TT extends object>(key: string): QueryType<TT> {
+    return this._addToModelQuery[key];
+  }
+
   public addToModelQuery<
     TT extends { [key: string]: object },
     K extends keyof TT = keyof TT
