@@ -228,13 +228,9 @@ export class Query<
   }
 
   public createQuery({
-    param,
     query,
     noRoot,
   }: ICreateQueryOptions<R, T> = {}): QueryType<T> {
-    if (param) {
-      this.model = param;
-    }
     const _query = this.initQuery();
     const queryArray = [];
     const root = this.root;
@@ -334,7 +330,6 @@ export class Query<
 }
 
 interface ICreateQueryOptions<R, T extends object> {
-  param?: keyof R;
   query?: (keyof T)[];
   noRoot?: boolean;
 }

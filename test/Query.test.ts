@@ -30,6 +30,22 @@ describe('Query', () => {
       score: { $meta: 'textScore' },
     });
   });
+  it('should add model query if addToModelQueryUes', () => {
+    const query = new Query({ $text: 'Search text' });
+    query.addToModelQuery('user', { name: 'Test' });
+    query.model = 'user' as any;
+    expect(query.createQuery()).to.deep.equal({
+      $and: [
+        { name: 'Test' },
+        {
+          $text: { $search: 'Search text' },
+        },
+      ],
+    });
+    expect(query.options).to.deep.equal({
+      score: { $meta: 'textScore' },
+    });
+  });
   it('should search list of ids', () => {
     const query = new Query({ $in__id: '1,2' });
     expect(query.createQuery()).to.deep.equal({ _id: { $in: ['1', '2'] } });

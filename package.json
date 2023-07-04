@@ -6,7 +6,7 @@
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {
-    "start": "yarn build:watch",
+    "dev": "yarn build:watch",
     "build": "tsc",
     "build:watch": "tsc --watch --incremental",
     "lint": "tslint --project \"./tsconfig.json\"",
