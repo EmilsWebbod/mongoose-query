@@ -208,8 +208,8 @@ export class Query<
   public addToModelQuery<
     TT extends { [key: string]: object },
     K extends keyof TT = keyof TT
-  >(key: K | K[], query: QueryType<TT[K]>) {
-    const modelKeys = key as unknown as keyof R[];
+  >(model: K | K[], query: QueryType<TT[K]>) {
+    const modelKeys = model as unknown as keyof R[];
     const keys = Array.isArray(modelKeys)
       ? modelKeys
       : ([modelKeys] as (keyof R)[]);
@@ -228,17 +228,10 @@ export class Query<
     return this;
   }
 
-  public removeFromModelQuery<
-    TT extends { [key: string]: object },
-    K extends keyof TT = keyof TT
-  >(key: K | K[]) {
-    const modelKeys = key as unknown as keyof R[];
-    const keys = Array.isArray(modelKeys)
-      ? modelKeys
-      : ([modelKeys] as (keyof R)[]);
-    for (const modelKey of keys) {
-      if (this._addToModelQuery[modelKey]) {
-        delete this._addToModelQuery[modelKey];
+  public removeFromModelQuery(model: string, key: string) {
+    if (this._addToModelQuery[model]) {
+      if (key in this._addToModelQuery[model]) {
+        delete this._addToModelQuery[model][key];
       }
     }
     return this;
