@@ -255,11 +255,11 @@ export class QueryModel<T extends object> {
     for (const key in body) {
       $set[`${String(sub)}.$.${key}`] = body[key];
     }
+    const filter = query.root as mongoose.FilterQuery<T>;
+    filter[sub] = { $elemMatch: subQuery } as any;
+
     await this._model.updateOne(
-      {
-        ...query.root,
-        [sub]: { $elemMatch: subQuery },
-      } as mongoose.FilterQuery<T>,
+      filter,
       // @ts-ignore
       { $set }
     );

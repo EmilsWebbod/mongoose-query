@@ -78,16 +78,15 @@ export class Query<
   }
 
   get root(): QueryType<T> | null {
-    const root = this._root;
-    if (this._model && this._addToModelQuery[this._model]) {
+    const modelQuery = this._addToModelQuery[this._model];
+    const root = this.root;
+    if (this._model && modelQuery && Object.keys(modelQuery).length) {
       if (root) {
-        return {
-          $and: [root, this._addToModelQuery[this._model]!],
-        } as QueryType<T>;
+        return { $and: [root, modelQuery] } as QueryType<T>;
       }
-      return this._addToModelQuery[this._model]!;
+      return { ...modelQuery };
     }
-    return root;
+    return { ...root };
   }
 
   get model() {
