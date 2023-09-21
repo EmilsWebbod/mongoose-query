@@ -225,6 +225,23 @@ export class Query<
         this._addToModelQuery[modelKey] = { ...query };
       }
     }
+    return this;
+  }
+
+  public removeFromModelQuery<
+    TT extends { [key: string]: object },
+    K extends keyof TT = keyof TT
+  >(key: K | K[]) {
+    const modelKeys = key as unknown as keyof R[];
+    const keys = Array.isArray(modelKeys)
+      ? modelKeys
+      : ([modelKeys] as (keyof R)[]);
+    for (const modelKey of keys) {
+      if (this._addToModelQuery[modelKey]) {
+        delete this._addToModelQuery[modelKey];
+      }
+    }
+    return this;
   }
 
   public createQuery({
