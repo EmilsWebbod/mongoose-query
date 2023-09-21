@@ -79,7 +79,7 @@ export class Query<
 
   get root(): QueryType<T> | null {
     const modelQuery = this._addToModelQuery[this._model];
-    const root = this.root;
+    const root = this._root;
     if (this._model && modelQuery && Object.keys(modelQuery).length) {
       if (root) {
         return { $and: [root, modelQuery] } as QueryType<T>;
