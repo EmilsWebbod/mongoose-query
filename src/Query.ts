@@ -167,6 +167,14 @@ export class Query<
     return this._root;
   }
 
+  public removeRoot(key: string) {
+    if (this._root && key in this._root) {
+      delete this._root[key];
+    }
+
+    return this._root;
+  }
+
   public addRootNext(query: QueryType<T>) {
     this._rootNext = {
       ...(this._rootNext || {}),
