@@ -188,23 +188,14 @@ export class QueryOptions<T extends object> {
                 localField: `${String(subOptions.sub)}.${pop.path}`,
                 foreignField: '_id',
                 as: pop.path,
+                pipeline: [{
+                  $project: select.reduce(
+                    (obj, item) => ({ ...obj, [item]: 1 }),
+                    {}
+                  )
+                }]
               },
             },
-            ...(pop.select
-              ? [
-                  {
-                    $project: {
-                      _id: 1,
-                      [subOptions.sub]: 1,
-                      count: 1,
-                      [pop.path]: select.reduce(
-                        (obj, item) => ({ ...obj, [item]: 1 }),
-                        {}
-                      ),
-                    },
-                  },
-                ]
-              : []),
           ]
         );
       }
