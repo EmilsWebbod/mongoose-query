@@ -7,6 +7,7 @@ export interface IQueryOptionsPopulate<T extends any, K extends keyof T> {
   select: (T[K] extends object ? keyof T[K] : string)[];
   ref?: string;
   lookupRef?: string;
+  multiple?: boolean;
   onFindOne?: boolean;
   onPatch?: boolean;
   onPost?: boolean;

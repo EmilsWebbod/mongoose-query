@@ -213,9 +213,9 @@ export class QueryModel<T extends object> {
     return arr.reduce(
       (obj, item) => {
         const data = { ...item[sub] };
-        for (const key in item) {
-          if (!['_id', 'count', 'skip', 'limit', sub].includes(key)) {
-            data[key] = Array.isArray(item[key]) ? item[key][0] : item[key];
+        for (const pop of subOptions.populate) {
+          if (item[pop.path] && data[pop.path]) {
+            data[pop.path] = pop.multiple ? item[pop.path] : item[pop.path][0];
           }
         }
         return {
