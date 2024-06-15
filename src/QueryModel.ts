@@ -52,7 +52,7 @@ export class QueryModel<T extends object> {
     const { skip = query.skip, limit = query.limit } = modelFind.getOptions();
     const [data, count] = await Promise.all([
       modelFind.lean().exec(),
-      this._model.find(findQuery).count(),
+      this._model.find(findQuery).countDocuments(),
     ]);
 
     return { data: data as T[], count, limit, skip };
