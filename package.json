@@ -1,6 +1,6 @@
 {
   "name": "@ewb/mongoose-query",
-  "version": "1.1.11",
+  "version": "1.1.12",
   "type": "module",
   "description": "Parse queries and params to mongoose search. Strips dangerous keys and set corrects options with help of query values.",
   "main": "./lib/index.js",
