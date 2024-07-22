@@ -342,7 +342,7 @@ export class Query<
         }
       }
     }
-    return mongoSanitize.sanitize(cleanedQuery, { replaceWith: '_' });
+    return mongoSanitize.sanitize(cleanedQuery, { replaceWith: '_', allowDots: true });
   }
 }
 
