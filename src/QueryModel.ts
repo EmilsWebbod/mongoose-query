@@ -120,8 +120,12 @@ export class QueryModel<T extends object> {
     $in: mongoose.Types.ObjectId[],
     body: Partial<T>
   ) {
+    const $set = { ...body };
+    if (this.options.updateDateKey) {
+      $set[this.options.updateDateKey] = new Date() as T[typeof this.options.updateDateKey];
+    }
     // @ts-ignore
-    return this._model.updateMany({ ...query, _id: { $in } }, { $set: body });
+    return this._model.updateMany({ ...query, _id: { $in } }, { $set });
   }
 
   public async deleteMany(

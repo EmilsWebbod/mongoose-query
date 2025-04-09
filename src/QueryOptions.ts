@@ -63,7 +63,7 @@ export class QueryOptions<T extends object> {
     return this.opts.subs;
   }
 
-  public get updateDateKey() {
+  public get updateDateKey(): keyof T {
     return this.opts.updateDateKey;
   }
 
