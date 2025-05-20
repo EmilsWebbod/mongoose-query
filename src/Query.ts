@@ -310,7 +310,6 @@ export class Query<
     for (const key in query) {
       if (query.hasOwnProperty(key)) {
         const str = String(query[key]);
-        if (!str) continue;
         if (key[0] === '$') {
           if (typeof query[key] !== 'string') continue;
           const { field, value } = mongooseQueryWithOperation(

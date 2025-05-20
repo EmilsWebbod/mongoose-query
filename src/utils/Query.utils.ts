@@ -180,7 +180,7 @@ export function toMongooseOperation<
   value: Q[K];
 } {
   const value = {
-    [operation]: queryValue.split(SORT_SPLIT),
+    [operation]: queryValue.split(SORT_SPLIT).filter(Boolean),
   } as Q[K];
   return { field, value };
 }
