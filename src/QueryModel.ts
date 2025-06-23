@@ -122,8 +122,7 @@ export class QueryModel<T extends object> {
   ) {
     const $set = { ...body };
     if (this.options.updateDateKey) {
-      $set[this.options.updateDateKey] =
-        new Date() as T[typeof this.options.updateDateKey];
+      $set[this.options.updateDateKey] = new Date() as T[typeof this.options.updateDateKey];
     }
     // @ts-ignore
     return this._model.updateMany({ ...query, _id: { $in } }, { $set });
@@ -244,9 +243,9 @@ export class QueryModel<T extends object> {
         ...query.root,
         [sub]: { $elemMatch: subQuery },
       } as mongoose.FilterQuery<T>,
-      { [String(sub)]: 1 }
+      { [`${String(sub)}.$`]: 1 }
     );
-    return this.getSubDocument<K>(sub, subDoc, subQuery._id);
+    return this.getSubDocument<K>(sub, subDoc);
   }
 
   public async subFindOneAndUpdate<K extends keyof T>(
@@ -313,19 +312,11 @@ export class QueryModel<T extends object> {
 
   private getSubDocument<K extends keyof T>(
     key: K,
-    doc?: T | null,
-    id?: string | mongoose.Types.ObjectId
+    doc?: T | null
   ): SubDocItem<T, K> {
     if (!doc) return null;
     const array = doc[key] as unknown as SubDocArray<T, K>;
     if (array && Array.isArray(array)) {
-      if (id) {
-        return (
-          (array.find((x: mongoose.HydratedDocument<any>) =>
-            x._id.matchId(id)
-          ) as SubDocItem<T, K>) || null
-        );
-      }
       // @ts-ignore
       return array[0] || null;
     }
