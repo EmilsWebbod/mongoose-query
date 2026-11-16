@@ -30,6 +30,11 @@ export class QueryModel<T extends object> {
     return this._model;
   }
 
+  // Sub-document queries build filters and updates from dynamic keys, which mongoose 9's generic types reject.
+  private get dynamicModel(): mongoose.Model<any> {
+    return this._model;
+  }
+
   public async create<B extends Partial<T>>(body: B) {
     const newDoc = new this._model(body);
     await newDoc.validate();
@@ -144,9 +149,8 @@ export class QueryModel<T extends object> {
     if (!('_id' in body)) {
       body['_id'] = new mongoose.Types.ObjectId();
     }
-    await this._model.updateOne(
-      { ...query.root } as mongoose.QueryFilter<T>,
-      // @ts-ignore
+    await this.dynamicModel.updateOne(
+      { ...query.root },
       { $push: { [sub]: body } }
     );
     return this.subFindOne(sub, query, { _id: body._id });
@@ -238,11 +242,11 @@ export class QueryModel<T extends object> {
     query: Query<T>,
     subQuery: mongoose.QueryFilter<T[K]>
   ): Promise<SubDocItem<T, K>> {
-    const subDoc = await this._model.findOne(
+    const subDoc = await this.dynamicModel.findOne(
       {
         ...query.root,
         [sub]: { $elemMatch: subQuery },
-      } as mongoose.QueryFilter<T>,
+      },
       { [`${String(sub)}.$`]: 1 }
     );
     return this.getSubDocument<K>(sub, subDoc);
@@ -259,14 +263,10 @@ export class QueryModel<T extends object> {
     for (const key in body) {
       $set[`${String(sub)}.$.${key}`] = body[key];
     }
-    const filter = query.root as mongoose.QueryFilter<T>;
-    filter[sub] = { $elemMatch: subQuery } as any;
+    const filter = query.root;
+    filter[String(sub)] = { $elemMatch: subQuery };
 
-    await this._model.updateOne(
-      filter,
-      // @ts-ignore
-      { $set }
-    );
+    await this.dynamicModel.updateOne(filter, { $set });
     return this.subFindOne(sub, query, subQuery);
   }
 
@@ -275,14 +275,14 @@ export class QueryModel<T extends object> {
     query: Query<T>,
     subQuery: mongoose.QueryFilter<T[K]>
   ): Promise<(T[K] extends [] ? T[K][0] : null) | null> {
-    const subDoc = await this.subFindOne(sub, query, subQuery);
+    // subFindOne's conditional return type narrows to never on a truthy check, so read _id from any.
+    const subDoc: any = await this.subFindOne(sub, query, subQuery);
     if (!subDoc) return null;
-    await this._model.updateOne(
+    await this.dynamicModel.updateOne(
       {
         ...query.root,
         [sub]: { $elemMatch: subQuery },
-      } as mongoose.QueryFilter<T>,
-      // @ts-ignore
+      },
       { $pull: { [sub]: { _id: subDoc._id } } }
     );
     return subDoc;
@@ -312,10 +312,10 @@ export class QueryModel<T extends object> {
 
   private getSubDocument<K extends keyof T>(
     key: K,
-    doc?: T | null
+    doc?: Record<string, any> | null
   ): SubDocItem<T, K> {
     if (!doc) return null;
-    const array = doc[key] as unknown as SubDocArray<T, K>;
+    const array = doc[String(key)] as unknown as SubDocArray<T, K>;
     if (array && Array.isArray(array)) {
       // @ts-ignore
       return array[0] || null;
@@ -323,13 +323,12 @@ export class QueryModel<T extends object> {
     return null;
   }
 
-  public toJSON(_: unknown, ret: T) {
+  public toJSON(_: unknown, ret: Record<string, any>) {
     if (this.options.privateFields) {
       for (const key of this.options.privateFields) {
-        // @ts-ignore
-        if (key in ret) {
-          // @ts-ignore
-          delete ret[key];
+        const name = String(key);
+        if (name in ret) {
+          delete ret[name];
         }
       }
     }

@@ -263,7 +263,10 @@ function queryToSubFilter<T extends UpdateObject, K extends keyof T>(
 
 function toCorrectIdValue(v?: string | number) {
   if (!v) return v;
-  if (mongoose.isValidObjectId(v)) return new mongoose.Types.ObjectId(v);
+  // Mongoose 9: numbers are never valid ObjectIds, and the ObjectId constructor rejects them.
+  if (typeof v === 'string' && mongoose.isValidObjectId(v)) {
+    return new mongoose.Types.ObjectId(v);
+  }
   return v;
 }
 

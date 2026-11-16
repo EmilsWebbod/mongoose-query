@@ -6,6 +6,7 @@
     /* Build options */
     "outDir": "lib",
     "rootDir": "./src",
+    "types": ["node"],
     "sourceMap": false,
     "declaration": true /* Generates corresponding '.d.ts' file. */,
     "declarationMap": false /* Generates a sourcemap for each corresponding '.d.ts' file. */,

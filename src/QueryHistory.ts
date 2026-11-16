@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { create } from 'jsondiffpatch';
+import { create, type Delta } from 'jsondiffpatch';
 
 const diffPatcher = create({
   objectHash: (obj: any) => {
@@ -134,7 +134,9 @@ export class QueryHistory<T extends IQueryHistorySchema & mongoose.Document> {
       // @ts-ignore
       model.findOne({ _id }).select(this.ignoreToSelect()),
       // @ts-ignore
-      model.findOne({ _id, 'history._id': historyID }, { 'history.$': 1 }),
+      model
+        .findOne({ _id, 'history._id': historyID }, { 'history.$': 1 })
+        .lean<IQueryHistorySchema>(),
     ]);
     if (!doc) {
       throw new Error('Doc not found');
@@ -143,7 +145,8 @@ export class QueryHistory<T extends IQueryHistorySchema & mongoose.Document> {
       throw new Error('History not found');
     }
     const history = historyDoc.history[0];
-    diffPatcher.unpatch(doc, history.diff);
+    // The diff is stored from diffPatcher.diff(), so it is a Delta.
+    diffPatcher.unpatch(doc, history.diff as Delta);
 
     // @ts-ignore
     await model.updateOne(

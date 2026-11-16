@@ -260,12 +260,13 @@ export class Query<
     }
     if (Object.keys(_query).length > 0) {
       const addQuery = query
-        ? query.reduce((obj, key) => {
-            if (typeof _query[key] !== 'undefined') {
-              obj[key] = _query[key];
+        ? query.reduce<Record<string, any>>((obj, key) => {
+            const name = String(key);
+            if (typeof _query[name] !== 'undefined') {
+              obj[name] = _query[name];
             }
             return obj;
-          }, {} as QueryType<T>)
+          }, {})
         : _query;
       if (Object.keys(addQuery).length > 0) {
         queryArray.push(addQuery);
