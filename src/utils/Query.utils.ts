@@ -105,7 +105,7 @@ export function mongooseQueryPopulate(query: IMongooseQueryOptions) {
   }
 }
 
-const splitKey = <Q extends mongoose.FilterQuery<any>, K extends keyof Q>(
+const splitKey = <Q extends mongoose.QueryFilter<any>, K extends keyof Q>(
   key: K
 ): [operation: string, field: K] => {
   const [operation, ...field] = String(key).split('_');
@@ -114,7 +114,7 @@ const splitKey = <Q extends mongoose.FilterQuery<any>, K extends keyof Q>(
 
 export function mongooseQueryWithOperation<
   T extends object,
-  Q extends mongoose.FilterQuery<T>,
+  Q extends mongoose.QueryFilter<T>,
   K extends keyof Q
 >(query: Q, queryKey: K, queryValue: string) {
   try {
@@ -141,7 +141,7 @@ export function mongooseQueryWithOperation<
 
 export function greaterLessThanValue<
   T extends object,
-  Q extends mongoose.FilterQuery<T>,
+  Q extends mongoose.QueryFilter<T>,
   K extends keyof Q
 >(
   query: Q,
@@ -168,7 +168,7 @@ const SORT_SPLIT = /,|\s/;
 
 export function toMongooseOperation<
   T extends object,
-  Q extends mongoose.FilterQuery<T>,
+  Q extends mongoose.QueryFilter<T>,
   K extends keyof Q
 >(
   query: Q,

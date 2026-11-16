@@ -69,7 +69,7 @@ export class QueryModel<T extends object> {
 
   public async findOneAndUpdate(
     query: Query<T>,
-    filter: mongoose.FilterQuery<T>,
+    filter: mongoose.QueryFilter<T>,
     update: mongoose.UpdateQuery<T>
   ) {
     if (this.options.updateDateKey) {
@@ -89,7 +89,7 @@ export class QueryModel<T extends object> {
     return modelUpdateOne.exec();
   }
 
-  public async deleteOne(filter: mongoose.FilterQuery<T>) {
+  public async deleteOne(filter: mongoose.QueryFilter<T>) {
     return this._model.deleteOne(filter);
   }
 
@@ -116,7 +116,7 @@ export class QueryModel<T extends object> {
   }
 
   public async updateMany(
-    query: mongoose.FilterQuery<T>,
+    query: mongoose.QueryFilter<T>,
     $in: mongoose.Types.ObjectId[],
     body: Partial<T>
   ) {
@@ -129,7 +129,7 @@ export class QueryModel<T extends object> {
   }
 
   public async deleteMany(
-    query: mongoose.FilterQuery<T>,
+    query: mongoose.QueryFilter<T>,
     $in: mongoose.Types.ObjectId[]
   ) {
     // @ts-ignore
@@ -145,7 +145,7 @@ export class QueryModel<T extends object> {
       body['_id'] = new mongoose.Types.ObjectId();
     }
     await this._model.updateOne(
-      { ...query.root } as mongoose.FilterQuery<T>,
+      { ...query.root } as mongoose.QueryFilter<T>,
       // @ts-ignore
       { $push: { [sub]: body } }
     );
@@ -155,7 +155,7 @@ export class QueryModel<T extends object> {
   public async subSearch<K extends keyof T>(
     sub: K,
     query: Query<T>,
-    rootQuery: mongoose.FilterQuery<T>
+    rootQuery: mongoose.QueryFilter<T>
   ): Promise<{
     count: number;
     limit: number;
@@ -236,13 +236,13 @@ export class QueryModel<T extends object> {
   public async subFindOne<K extends keyof T>(
     sub: K,
     query: Query<T>,
-    subQuery: mongoose.FilterQuery<T[K]>
+    subQuery: mongoose.QueryFilter<T[K]>
   ): Promise<SubDocItem<T, K>> {
     const subDoc = await this._model.findOne(
       {
         ...query.root,
         [sub]: { $elemMatch: subQuery },
-      } as mongoose.FilterQuery<T>,
+      } as mongoose.QueryFilter<T>,
       { [`${String(sub)}.$`]: 1 }
     );
     return this.getSubDocument<K>(sub, subDoc);
@@ -251,7 +251,7 @@ export class QueryModel<T extends object> {
   public async subFindOneAndUpdate<K extends keyof T>(
     sub: K,
     query: Query<T>,
-    subQuery: mongoose.FilterQuery<T[K]>,
+    subQuery: mongoose.QueryFilter<T[K]>,
     body: T[K]
   ): Promise<(T[K] extends [] ? T[K][0] : null) | null> {
     const $set: any = {};
@@ -259,7 +259,7 @@ export class QueryModel<T extends object> {
     for (const key in body) {
       $set[`${String(sub)}.$.${key}`] = body[key];
     }
-    const filter = query.root as mongoose.FilterQuery<T>;
+    const filter = query.root as mongoose.QueryFilter<T>;
     filter[sub] = { $elemMatch: subQuery } as any;
 
     await this._model.updateOne(
@@ -273,7 +273,7 @@ export class QueryModel<T extends object> {
   public async subDelete<K extends keyof T>(
     sub: K,
     query: Query<T>,
-    subQuery: mongoose.FilterQuery<T[K]>
+    subQuery: mongoose.QueryFilter<T[K]>
   ): Promise<(T[K] extends [] ? T[K][0] : null) | null> {
     const subDoc = await this.subFindOne(sub, query, subQuery);
     if (!subDoc) return null;
@@ -281,7 +281,7 @@ export class QueryModel<T extends object> {
       {
         ...query.root,
         [sub]: { $elemMatch: subQuery },
-      } as mongoose.FilterQuery<T>,
+      } as mongoose.QueryFilter<T>,
       // @ts-ignore
       { $pull: { [sub]: { _id: subDoc._id } } }
     );

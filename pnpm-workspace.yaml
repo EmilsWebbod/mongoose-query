@@ -1,0 +1,10 @@
+# Do not install packages published less than 7 days ago (minutes).
+minimumReleaseAge: 10080
+# Our own packages (@aptly-as and @ewb) are exempt so we can use new releases right away.
+minimumReleaseAgeExclude:
+  - '@aptly-as/*'
+  - '@ewb/*'
+
+# Dependency build scripts. Only the packages below may run install scripts.
+allowBuilds:
+  esbuild: true

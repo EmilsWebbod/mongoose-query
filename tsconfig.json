@@ -5,6 +5,7 @@
   "compilerOptions": {
     /* Build options */
     "outDir": "lib",
+    "rootDir": "./src",
     "sourceMap": false,
     "declaration": true /* Generates corresponding '.d.ts' file. */,
     "declarationMap": false /* Generates a sourcemap for each corresponding '.d.ts' file. */,
@@ -13,7 +14,7 @@
     /* Required options for type="module" */
     "target": "ES2021" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017','ES2018' or 'ESNEXT'. */,
     "module": "ESNext" /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', or 'ESNext'. */,
-    "moduleResolution": "node" /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */,
+    "moduleResolution": "bundler" /* TypeScript 7 removed 'node' (node10). */,
     "esModuleInterop": true /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */,
     "allowSyntheticDefaultImports": true /* Mut be present with esModuleInterop for all modules to work */,
 

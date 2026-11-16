@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import mongodb from 'mongodb';
 import httpStatus from 'http-status';
 
 interface ErrorOpts {
@@ -37,7 +36,7 @@ export class QueryError<R extends object, C extends string> extends Error {
   }
 
   static getData(error: mongoose.Error): [number, ErrorOpts] {
-    if (error instanceof mongodb.MongoServerError) {
+    if (error instanceof mongoose.mongo.MongoServerError) {
       if (error.code === 11000) {
         return [
           httpStatus.CONFLICT,

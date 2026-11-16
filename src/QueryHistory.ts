@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
-import jsonDiffPatch from 'jsondiffpatch';
+import { create } from 'jsondiffpatch';
 
-const diffPatcher = jsonDiffPatch.create({
+const diffPatcher = create({
   objectHash: (obj: any) => {
     return '_id' in obj ? obj._id.toString() : obj.toString();
   },

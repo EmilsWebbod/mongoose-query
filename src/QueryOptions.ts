@@ -71,7 +71,7 @@ export class QueryOptions<T extends object> {
     return this.opts.query;
   }
 
-  public createSearchQuery(query: Query<any, T>): mongoose.FilterQuery<T> {
+  public createSearchQuery(query: Query<any, T>): mongoose.QueryFilter<T> {
     return query.createQuery({
       noRoot: false,
       query: this.opts.query,
@@ -205,7 +205,7 @@ export class QueryOptions<T extends object> {
   }
 
   public getSubFilterConditionAndMatch(
-    subQuery: mongoose.FilterQuery<T>,
+    subQuery: mongoose.QueryFilter<T>,
     options: IQuerySearchOptionsSub<T, keyof T>
   ) {
     const cond: any = {};
