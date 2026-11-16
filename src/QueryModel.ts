@@ -88,7 +88,7 @@ export class QueryModel<T extends object> {
       }
     }
     const modelUpdateOne = this._model.findOneAndUpdate(filter, update, {
-      new: true,
+      returnDocument: 'after',
     });
     this.options.setPopulate(modelUpdateOne, query);
     this.options.setSelect(modelUpdateOne, query);
