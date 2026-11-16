@@ -6,15 +6,15 @@
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {
-    "dev": "yarn build:watch",
+    "dev": "pnpm build:watch",
     "build": "tsc",
     "build:watch": "tsc --watch --incremental",
     "lint": "tslint --project \"./tsconfig.json\"",
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "postversion": "git push && git push --tags",
-    "prepublish": "yarn test && yarn build",
-    "preversion": "yarn build"
+    "prepublish": "pnpm test && pnpm build",
+    "preversion": "pnpm build"
   },
   "dependencies": {
     "express-mongo-sanitize": "^2.2.0",
