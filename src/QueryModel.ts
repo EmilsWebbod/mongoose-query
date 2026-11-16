@@ -20,7 +20,8 @@ type SubDocItem<T extends object, K extends keyof T> =
 
 export class QueryModel<T extends object> {
   constructor(
-    private _model: mongoose.Model<T>,
+    // NoInfer: let T come from `options`. Inferring it from a mongoose 9 Model gives Pick<IDoc, never>.
+    private _model: mongoose.Model<NoInfer<T>>,
     private options: QueryOptions<T>
   ) {
     this.toJSON = this.toJSON.bind(this);
